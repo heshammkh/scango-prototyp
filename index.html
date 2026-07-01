@@ -1,0 +1,535 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Smart Store · Scan &amp; Go</title>
+<style>
+  :root{
+    --bg:#F7F8F6; --surface:#FFFFFF; --surface-2:#EFF2EE;
+    --brand:#10714E; --brand-2:#1FA971; --brand-ink:#0B4C34;
+    --ink:#182320; --muted:#6B7770; --line:#E2E7E2;
+    --warn:#B4611A; --warn-bg:#FBEFE2; --danger:#B0342A; --danger-bg:#FBEAE8;
+    --ok:#1FA971;
+    --shadow:0 1px 2px rgba(24,35,32,.06),0 8px 24px rgba(24,35,32,.08);
+    --radius:16px;
+    --font:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{
+    background:var(--bg);color:var(--ink);font-family:var(--font);
+    line-height:1.45;-webkit-font-smoothing:antialiased;
+    display:flex;justify-content:center;
+  }
+  .phone{
+    width:100%;max-width:430px;min-height:100vh;background:var(--bg);
+    position:relative;display:flex;flex-direction:column;overflow:hidden;
+  }
+  /* ---------- Phase bar ---------- */
+  .phases{display:flex;gap:4px;padding:12px 16px 4px;background:var(--bg)}
+  .phase{flex:1;text-align:center;font-size:10px;letter-spacing:.02em;color:var(--muted);
+         text-transform:uppercase;font-weight:600}
+  .phase .dot{height:4px;border-radius:2px;background:var(--line);margin-bottom:5px;transition:background .3s}
+  .phase.active .dot{background:var(--brand-2)}
+  .phase.active{color:var(--brand-ink)}
+  .phase.done .dot{background:var(--brand)}
+  /* ---------- Screen ---------- */
+  .screen{flex:1;padding:8px 16px 120px;display:none;animation:fade .32s ease}
+  .screen.show{display:block}
+  @keyframes fade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+  h1{font-size:22px;line-height:1.2;margin:14px 0 6px;letter-spacing:-.01em}
+  h2{font-size:15px;margin:22px 0 10px;letter-spacing:-.01em}
+  .sub{color:var(--muted);font-size:14px;margin:0 0 8px}
+  /* ---------- Check-in ---------- */
+  .checkin-hero{text-align:center;padding:34px 8px 8px}
+  .brandmark{display:inline-flex;align-items:center;gap:9px;font-weight:700;font-size:15px;
+             color:var(--brand-ink);letter-spacing:.01em}
+  .brandmark .glyph{width:26px;height:26px;border-radius:8px;background:var(--brand);
+                    display:grid;place-items:center;color:#fff;font-size:15px}
+  .qr{width:170px;height:170px;margin:26px auto 8px;border-radius:20px;background:#fff;
+      box-shadow:var(--shadow);display:grid;place-items:center;padding:18px}
+  .qr svg{width:100%;height:100%}
+  /* ---------- Buttons ---------- */
+  .btn{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;
+       border:0;border-radius:13px;padding:15px 18px;font-size:16px;font-weight:600;
+       font-family:var(--font);cursor:pointer;transition:transform .08s,filter .2s;
+       background:var(--brand);color:#fff}
+  .btn:active{transform:scale(.985)}
+  .btn.secondary{background:var(--surface-2);color:var(--brand-ink)}
+  .btn.ghost{background:transparent;color:var(--muted);font-weight:600;padding:12px}
+  .btn.warn{background:var(--warn)}
+  .btn:disabled{filter:grayscale(.5) opacity(.55);cursor:not-allowed}
+  .stack>*{margin-top:10px}
+  /* ---------- Products ---------- */
+  .scanhint{display:flex;gap:10px;align-items:flex-start;background:var(--surface);
+            border:1px solid var(--line);border-radius:13px;padding:12px 13px;margin:4px 0 14px}
+  .scanhint .ic{font-size:18px;line-height:1.2}
+  .scanhint p{margin:0;font-size:13px;color:var(--muted)}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .card{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);
+        padding:13px;cursor:pointer;position:relative;transition:transform .08s,box-shadow .2s;
+        text-align:left}
+  .card:active{transform:scale(.97)}
+  .card .emoji{font-size:30px;display:block;margin-bottom:6px}
+  .card .nm{font-size:14px;font-weight:600;line-height:1.25}
+  .card .ean{font-size:10px;color:var(--muted);margin-top:3px;letter-spacing:.02em}
+  .card .pr{position:absolute;top:12px;right:12px;font-size:13px;font-weight:700;color:var(--brand-ink)}
+  .card .scanbadge{margin-top:9px;font-size:11px;font-weight:600;color:var(--brand-2);
+                   display:flex;align-items:center;gap:5px}
+  /* ---------- Cart ---------- */
+  .cart{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);
+        overflow:hidden;margin-top:8px}
+  .cart-empty{padding:26px 16px;text-align:center;color:var(--muted);font-size:14px}
+  .row{display:flex;align-items:center;gap:12px;padding:12px 14px;border-top:1px solid var(--line)}
+  .row:first-child{border-top:0}
+  .row .re{font-size:22px}
+  .row .info{flex:1;min-width:0}
+  .row .info .n{font-size:14px;font-weight:600}
+  .row .info .p{font-size:12px;color:var(--muted)}
+  .qty{display:flex;align-items:center;gap:0;background:var(--surface-2);border-radius:9px}
+  .qty button{width:30px;height:30px;border:0;background:transparent;font-size:17px;
+              color:var(--brand-ink);cursor:pointer;border-radius:9px}
+  .qty span{min-width:22px;text-align:center;font-size:14px;font-weight:600}
+  .rm{border:0;background:transparent;color:var(--danger);font-size:13px;cursor:pointer;
+      padding:6px;font-weight:600}
+  /* ---------- Sticky footer ---------- */
+  .footbar{position:fixed;left:50%;transform:translateX(-50%);bottom:0;width:100%;
+           max-width:430px;background:linear-gradient(to top,var(--bg) 70%,transparent);
+           padding:12px 16px calc(14px + env(safe-area-inset-bottom));z-index:20}
+  .totline{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:9px;
+           padding:0 2px}
+  .totline .lbl{font-size:13px;color:var(--muted)}
+  .totline .val{font-size:20px;font-weight:700;letter-spacing:-.01em}
+  /* ---------- Cart pill (header) ---------- */
+  .topbar{position:sticky;top:0;z-index:15;display:flex;align-items:center;justify-content:space-between;
+          padding:12px 4px 8px;background:var(--bg)}
+  .pill{display:flex;align-items:center;gap:8px;background:var(--surface);border:1px solid var(--line);
+        border-radius:999px;padding:7px 13px 7px 11px;font-size:13px;font-weight:600;box-shadow:var(--shadow)}
+  .pill .cnt{background:var(--brand);color:#fff;border-radius:999px;min-width:20px;height:20px;
+             display:grid;place-items:center;font-size:12px;padding:0 5px}
+  .pill.bump{animation:bump .4s ease}
+  @keyframes bump{0%{transform:scale(1)}30%{transform:scale(1.12)}100%{transform:scale(1)}}
+  /* ---------- Verify / pay summary ---------- */
+  .panel{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:16px;margin-top:8px}
+  .panel.warn{background:var(--warn-bg);border-color:#F0D9BF}
+  .panel h3{margin:0 0 4px;font-size:15px}
+  .panel p{margin:0;font-size:13px;color:var(--muted)}
+  .sample{display:flex;align-items:center;gap:13px;margin-top:14px;background:var(--surface);
+          border:1px solid var(--line);border-radius:13px;padding:13px}
+  .sample .re{font-size:30px}
+  .sample .info{flex:1}
+  .sample .info .n{font-weight:600;font-size:15px}
+  .sample .info .p{font-size:12px;color:var(--muted)}
+  .check{width:26px;height:26px;border-radius:50%;border:2px solid var(--line);flex:none;
+         display:grid;place-items:center;color:#fff;transition:.2s}
+  .check.on{background:var(--ok);border-color:var(--ok)}
+  .paylist .row .p2{font-weight:700;font-size:14px}
+  .method{display:flex;align-items:center;gap:12px;border:1.5px solid var(--line);border-radius:13px;
+          padding:14px;margin-top:10px;cursor:pointer;background:var(--surface)}
+  .method.sel{border-color:var(--brand-2);background:#F1FBF6}
+  .method .radio{width:20px;height:20px;border-radius:50%;border:2px solid var(--line);flex:none}
+  .method.sel .radio{border-color:var(--brand-2);box-shadow:inset 0 0 0 4px var(--brand-2)}
+  .method .m-ic{font-size:20px}
+  .method .m-nm{font-weight:600;font-size:14px;flex:1}
+  .demo-toggle{display:flex;align-items:center;justify-content:space-between;margin-top:16px;
+               font-size:12px;color:var(--muted);padding:0 2px}
+  .demo-toggle label{display:flex;align-items:center;gap:7px;cursor:pointer}
+  /* ---------- Exit ---------- */
+  .exit-hero{text-align:center;padding:20px 8px}
+  .tick{width:74px;height:74px;border-radius:50%;background:var(--ok);margin:8px auto 4px;
+        display:grid;place-items:center;color:#fff;font-size:40px;
+        animation:pop .45s cubic-bezier(.2,1.3,.5,1)}
+  .tick.nopay{background:var(--warn)}
+  @keyframes pop{0%{transform:scale(.3);opacity:0}100%{transform:scale(1);opacity:1}}
+  .gate{margin:18px 0;font-size:13px;color:var(--muted)}
+  .gate .bar{height:8px;background:var(--surface-2);border-radius:4px;overflow:hidden;margin-top:10px}
+  .gate .bar i{display:block;height:100%;width:0;background:var(--brand-2);border-radius:4px;
+               animation:open 1.4s ease forwards}
+  @keyframes open{to{width:100%}}
+  /* ---------- Toast ---------- */
+  .toast{position:fixed;bottom:96px;left:50%;transform:translateX(-50%) translateY(20px);
+         background:var(--ink);color:#fff;padding:11px 16px;border-radius:11px;font-size:13.5px;
+         font-weight:500;opacity:0;pointer-events:none;transition:.28s;z-index:50;max-width:88%;
+         box-shadow:0 8px 30px rgba(0,0,0,.25);display:flex;align-items:center;gap:8px}
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+  /* ---------- Camera modal ---------- */
+  .cam{position:fixed;inset:0;background:rgba(10,15,13,.94);z-index:60;display:none;
+       flex-direction:column;align-items:center;justify-content:center;padding:20px}
+  .cam.show{display:flex}
+  .cam video{width:100%;max-width:360px;border-radius:16px;background:#000}
+  .cam .frame{color:#fff;font-size:14px;margin:14px 0;text-align:center}
+  .cam .btn{max-width:360px}
+  .fly{position:fixed;z-index:70;font-size:26px;pointer-events:none;transition:all .55s cubic-bezier(.4,0,.2,1);opacity:1}
+  /* ---------- Einlege-Bestätigung (Bottom-Sheet) ---------- */
+  .sheet-backdrop{position:fixed;inset:0;background:rgba(16,24,20,.42);z-index:55;display:none;
+                  align-items:flex-end;justify-content:center}
+  .sheet-backdrop.show{display:flex;animation:fade .2s ease}
+  .sheet{width:100%;max-width:430px;background:var(--surface);border-radius:22px 22px 0 0;
+         padding:22px 20px calc(22px + env(safe-area-inset-bottom));text-align:center;
+         box-shadow:0 -8px 30px rgba(0,0,0,.18);animation:slideup .28s cubic-bezier(.2,.9,.3,1)}
+  @keyframes slideup{from{transform:translateY(100%)}to{transform:translateY(0)}}
+  .sheet .sheet-emoji{width:60px;height:60px;margin:0 auto 8px;border-radius:16px;background:#F1FBF6;
+                      display:grid;place-items:center;font-size:32px;
+                      box-shadow:inset 0 0 0 2px #D3EFE1}
+  .sheet .ok-chip{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:700;
+                  color:var(--ok);background:#EAF8F1;border-radius:999px;padding:4px 11px;margin-bottom:8px}
+  .sheet .sheet-title{font-size:18px;font-weight:700;margin:2px 0 4px}
+  .sheet .sheet-sub{font-size:13.5px;color:var(--muted);margin:0 6px 16px;line-height:1.5}
+  .sheet .sheet-sub b{color:var(--ink)}
+  @media (prefers-reduced-motion:reduce){*{animation-duration:.001ms !important;transition:none !important}}
+</style>
+</head>
+<body>
+<div class="phone">
+
+  <!-- Phase indicator -->
+  <div class="phases" id="phases">
+    <div class="phase" data-ph="checkin"><div class="dot"></div>Eintritt</div>
+    <div class="phase" data-ph="shop"><div class="dot"></div>Einkauf</div>
+    <div class="phase" data-ph="verify"><div class="dot"></div>Prüfung</div>
+    <div class="phase" data-ph="pay"><div class="dot"></div>Zahlung</div>
+    <div class="phase" data-ph="exit"><div class="dot"></div>Ausgang</div>
+  </div>
+
+  <!-- ============ CHECK-IN ============ -->
+  <section class="screen show" id="s-checkin">
+    <div class="checkin-hero">
+      <div class="brandmark"><span class="glyph">◧</span> NahBox · Smart Store</div>
+      <div class="qr" id="entryqr"></div>
+      <h1>Willkommen</h1>
+      <p class="sub">Scanne den QR-Code am Eingang, um den Store zu betreten. Deine Kundenkarte identifiziert dich – so bleibt der Zugang auch ohne Personal sicher.</p>
+    </div>
+    <div class="stack" style="margin-top:18px">
+      <button class="btn" onclick="checkIn()">Store betreten</button>
+      <button class="btn ghost" onclick="go('shop');toast('Nur umsehen – du kannst jederzeit ohne Kauf gehen')">Nur umsehen (ohne Kauf)</button>
+    </div>
+  </section>
+
+  <!-- ============ SHOP ============ -->
+  <section class="screen" id="s-shop">
+    <div class="topbar">
+      <div style="font-weight:700;font-size:16px">Regal</div>
+      <div class="pill" id="pill" onclick="scrollCart()">
+        <span>🛒</span><span id="pill-cnt" class="cnt">0</span><span id="pill-sum">0,00 €</span>
+      </div>
+    </div>
+    <div class="scanhint">
+      <span class="ic">📷</span>
+      <p><b>Erst scannen, dann einpacken.</b> Tippe ein Produkt an, um es wie am Regal-ESL zu scannen. Es landet sofort in deinem digitalen Warenkorb – danach legst du es in den echten Korb.</p>
+    </div>
+    <button class="btn secondary" id="cambtn" style="display:none;margin-bottom:14px" onclick="openCam()">📷 Mit Kamera scannen</button>
+
+    <h2 style="margin-top:6px">Im Regal</h2>
+    <div class="grid" id="shelf"></div>
+
+    <h2>Digitaler Warenkorb <span id="cart-live" style="color:var(--muted);font-weight:500;font-size:13px"></span></h2>
+    <div class="cart" id="cart"></div>
+  </section>
+
+  <!-- ============ VERIFY ============ -->
+  <section class="screen" id="s-verify">
+    <h1>Alles gescannt?</h1>
+    <p class="sub">Bevor du bezahlst: Prüfe kurz, ob dein digitaler Warenkorb mit deinem echten Korb übereinstimmt.</p>
+    <div class="panel warn">
+      <h3 id="verify-count">–</h3>
+      <p>Vergleiche die Anzahl mit den Artikeln in deinem physischen Korb.</p>
+    </div>
+    <h2>Stichprobe</h2>
+    <p class="sub">Bestätige, dass du diesen zufällig gewählten Artikel wirklich dabei hast.</p>
+    <div class="sample" id="sample" onclick="confirmSample()">
+      <span class="re" id="sample-e">—</span>
+      <div class="info"><div class="n" id="sample-n">—</div><div class="p">Zum Bestätigen antippen</div></div>
+      <div class="check" id="sample-check">✓</div>
+    </div>
+    <div class="footbar">
+      <button class="btn" id="toPay" disabled onclick="go('pay');renderPay()">Zur Zahlung</button>
+      <button class="btn ghost" onclick="go('shop')">Zurück zum Einkauf</button>
+    </div>
+  </section>
+
+  <!-- ============ PAY ============ -->
+  <section class="screen" id="s-pay">
+    <h1>Bezahlen</h1>
+    <p class="sub">Der Checkout passiert komplett in der App – keine Kasse, keine Schlange.</p>
+    <div class="panel paylist" id="pay-summary"></div>
+    <h2>Zahlungsart</h2>
+    <div class="method sel" id="m-paypal" onclick="selMethod('paypal')">
+      <span class="radio"></span><span class="m-ic">🅿️</span><span class="m-nm">PayPal</span>
+    </div>
+    <div class="method" id="m-card" onclick="selMethod('card')">
+      <span class="radio"></span><span class="m-ic">💳</span><span class="m-nm">Kredit-/Debitkarte</span>
+    </div>
+    <div class="demo-toggle">
+      <label><input type="checkbox" id="failsim"> Zahlung fehlschlagen lassen (Demo)</label>
+    </div>
+    <div class="footbar">
+      <div class="totline"><span class="lbl">Zu zahlen</span><span class="val" id="pay-total">0,00 €</span></div>
+      <button class="btn" id="paybtn" onclick="pay()">Jetzt bezahlen</button>
+    </div>
+  </section>
+
+  <!-- ============ EXIT (paid) ============ -->
+  <section class="screen" id="s-exit">
+    <div class="exit-hero">
+      <div class="tick">✓</div>
+      <h1>Bezahlt</h1>
+      <p class="sub">Dein Exit-Code wurde erstellt. Zeig ihn an der Ausgangsschranke.</p>
+      <div class="qr" id="exitqr" style="margin:22px auto"></div>
+      <div class="gate">Ausgang öffnet sich …<div class="bar"><i></i></div></div>
+    </div>
+    <div class="stack">
+      <button class="btn" onclick="reset()">Store verlassen</button>
+    </div>
+  </section>
+
+  <!-- ============ EXIT (no purchase) ============ -->
+  <section class="screen" id="s-exitnp">
+    <div class="exit-hero">
+      <div class="tick nopay">→</div>
+      <h1>Ohne Kauf verlassen</h1>
+      <p class="sub">Auch ohne Einkauf kannst du den Store verlassen. Dein Zugang wurde beim Check-in registriert, dein Exit-Code öffnet die Schranke.</p>
+      <div class="qr" id="exitqr2" style="margin:22px auto"></div>
+      <div class="gate">Ausgang öffnet sich …<div class="bar"><i></i></div></div>
+    </div>
+    <div class="stack">
+      <button class="btn secondary" onclick="reset()">Store verlassen</button>
+    </div>
+  </section>
+
+</div>
+
+<!-- Camera modal -->
+<div class="cam" id="cam">
+  <div class="frame">Richte die Kamera auf einen Produkt-Barcode</div>
+  <video id="cam-video" playsinline></video>
+  <div class="frame" id="cam-status" style="min-height:20px"></div>
+  <button class="btn secondary" onclick="closeCam()">Schließen</button>
+</div>
+
+<!-- Einlege-Bestätigung -->
+<div class="sheet-backdrop" id="packsheet">
+  <div class="sheet">
+    <div class="sheet-emoji" id="pack-e">🍾</div>
+    <div class="ok-chip">✓ Im digitalen Warenkorb</div>
+    <div class="sheet-title" id="pack-n">Produkt erfasst</div>
+    <p class="sheet-sub">Der Artikel ist erfasst. <b>Jetzt darfst du ihn in deinen Korb legen.</b> Danach scannst du den nächsten Artikel.</p>
+    <button class="btn" onclick="closePack()">In den Korb gelegt</button>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ---------- Mock ESL / Wawi Produktkatalog ----------
+const CATALOG = [
+  {id:'p1', ean:'4002846034894', name:'Club-Mate 0,5 l', emoji:'🍾', price:1.29},
+  {id:'p2', ean:'4260107220121', name:'Fritz-Kola 0,33 l', emoji:'🥤', price:1.49},
+  {id:'p3', ean:'5000159461122', name:'Kaugummi (Streifen)', emoji:'🍬', price:0.89},
+  {id:'p4', ean:'4008400401225', name:'Schoko-Riegel', emoji:'🍫', price:0.99},
+  {id:'p5', ean:'4337185619373', name:'Wasser still 0,5 l', emoji:'💧', price:0.69},
+  {id:'p6', ean:'4009900484220', name:'Pfefferminz-Bonbons', emoji:'🌿', price:1.19},
+  {id:'p7', ean:'4001686301203', name:'Kaffee to go', emoji:'☕', price:1.99},
+  {id:'p8', ean:'4311501668405', name:'Bio-Apfel', emoji:'🍎', price:0.45},
+];
+const byId = id => CATALOG.find(p=>p.id===id);
+const byEan = e => CATALOG.find(p=>p.ean===e);
+
+// ---------- State ----------
+let cart = {};              // id -> qty
+let sampleConfirmed=false;
+let method='paypal';
+const euro = n => n.toFixed(2).replace('.',',')+' €';
+const cartItems = () => Object.entries(cart).filter(([,q])=>q>0);
+const cartCount = () => cartItems().reduce((s,[,q])=>s+q,0);
+const cartTotal = () => cartItems().reduce((s,[id,q])=>s+byId(id).price*q,0);
+
+// ---------- Navigation ----------
+const SCREENS=['checkin','shop','verify','pay','exit','exitnp'];
+const PHASEMAP={checkin:'checkin',shop:'shop',verify:'verify',pay:'pay',exit:'exit',exitnp:'exit'};
+const ORDER=['checkin','shop','verify','pay','exit'];
+function go(s){
+  SCREENS.forEach(x=>document.getElementById('s-'+x).classList.toggle('show',x===s));
+  const cur=PHASEMAP[s]; const ci=ORDER.indexOf(cur);
+  document.querySelectorAll('.phase').forEach(el=>{
+    const i=ORDER.indexOf(el.dataset.ph);
+    el.classList.toggle('active',el.dataset.ph===cur);
+    el.classList.toggle('done',i<ci);
+  });
+  window.scrollTo(0,0);
+}
+function checkIn(){ toast('Zugang bestätigt · Eingang entsperrt ✓'); setTimeout(()=>go('shop'),350); }
+
+// ---------- Shelf ----------
+function renderShelf(){
+  document.getElementById('shelf').innerHTML = CATALOG.map(p=>`
+    <button class="card" onclick="scan('${p.id}',event)">
+      <span class="pr">${euro(p.price)}</span>
+      <span class="emoji">${p.emoji}</span>
+      <div class="nm">${p.name}</div>
+      <div class="ean">EAN ${p.ean}</div>
+      <div class="scanbadge">⊕ Scannen</div>
+    </button>`).join('');
+}
+
+// ---------- Scan = add to digital cart (the coupling moment) ----------
+function scan(id, ev){
+  cart[id]=(cart[id]||0)+1;
+  renderCart(); bumpPill();
+  if(ev){ flyToCart(byId(id).emoji, ev.currentTarget); }
+  showPack(id);
+}
+function showPack(id){
+  const p=byId(id);
+  document.getElementById('pack-e').textContent=p.emoji;
+  document.getElementById('pack-n').textContent=p.name;
+  setTimeout(()=>document.getElementById('packsheet').classList.add('show'), 320);
+}
+function flyToCart(emoji, from){
+  const r=from.getBoundingClientRect(), t=document.getElementById('pill').getBoundingClientRect();
+  const el=document.createElement('div'); el.className='fly'; el.textContent=emoji;
+  el.style.left=r.left+r.width/2-13+'px'; el.style.top=r.top+'px'; document.body.appendChild(el);
+  requestAnimationFrame(()=>{ el.style.left=t.left+t.width/2-13+'px'; el.style.top=t.top+'px';
+    el.style.transform='scale(.4)'; el.style.opacity='0'; });
+  setTimeout(()=>el.remove(),600);
+}
+function bumpPill(){ const p=document.getElementById('pill'); p.classList.remove('bump'); void p.offsetWidth; p.classList.add('bump'); }
+function closePack(){ document.getElementById('packsheet').classList.remove('show'); }
+
+// ---------- Cart ----------
+function chg(id,d){ cart[id]=(cart[id]||0)+d; if(cart[id]<=0) delete cart[id]; renderCart(); }
+function removeItem(id){ delete cart[id]; renderCart(); toast('Artikel entfernt'); }
+function renderCart(){
+  const items=cartItems();
+  document.getElementById('pill-cnt').textContent=cartCount();
+  document.getElementById('pill-sum').textContent=euro(cartTotal());
+  document.getElementById('cart-live').textContent = items.length? '· Echtzeit-Sync':'';
+  const c=document.getElementById('cart');
+  if(!items.length){ c.innerHTML=`<div class="cart-empty">Dein digitaler Warenkorb ist leer.<br>Scanne Produkte am Regal.</div>`; }
+  else{
+    c.innerHTML=items.map(([id,q])=>{const p=byId(id);return `
+      <div class="row">
+        <span class="re">${p.emoji}</span>
+        <div class="info"><div class="n">${p.name}</div><div class="p">${euro(p.price)} · Zeile ${euro(p.price*q)}</div></div>
+        <div class="qty"><button onclick="chg('${id}',-1)">–</button><span>${q}</span><button onclick="chg('${id}',1)">+</button></div>
+        <button class="rm" onclick="removeItem('${id}')">✕</button>
+      </div>`;}).join('');
+  }
+  renderFoot();
+}
+function renderFoot(){
+  let f=document.getElementById('shop-foot');
+  if(!f){ f=document.createElement('div'); f.className='footbar'; f.id='shop-foot';
+    document.getElementById('s-shop').appendChild(f); }
+  const empty=cartCount()===0;
+  f.innerHTML=`<div class="totline"><span class="lbl">${empty?'Warenkorb leer':'Zwischensumme'}</span><span class="val">${euro(cartTotal())}</span></div>
+    <button class="btn" onclick="finishShopping()">${empty?'Ohne Kauf gehen':'Einkauf beenden'}</button>`;
+}
+function scrollCart(){ document.getElementById('cart').scrollIntoView({behavior:'smooth'}); }
+
+// ---------- Finish -> verify or no-purchase exit ----------
+function finishShopping(){
+  if(cartCount()===0){ go('exitnp'); restartGate('exitqr2'); toast('Exit-Code erstellt · kein Kauf'); return; }
+  sampleConfirmed=false; renderVerify(); go('verify');
+}
+
+// ---------- Verify ----------
+function renderVerify(){
+  document.getElementById('verify-count').textContent =
+    cartCount()+' Artikel · '+euro(cartTotal());
+  const items=cartItems(); const pick=byId(items[Math.floor(Math.random()*items.length)][0]);
+  document.getElementById('sample-e').textContent=pick.emoji;
+  document.getElementById('sample-n').textContent=pick.name;
+  document.getElementById('sample-check').classList.remove('on');
+  document.getElementById('toPay').disabled=true;
+}
+function confirmSample(){
+  sampleConfirmed=true;
+  document.getElementById('sample-check').classList.add('on');
+  document.getElementById('toPay').disabled=false;
+  toast('Stichprobe bestätigt ✓');
+}
+
+// ---------- Pay ----------
+function renderPay(){
+  const items=cartItems();
+  document.getElementById('pay-summary').innerHTML = items.map(([id,q])=>{const p=byId(id);return `
+    <div class="row"><span class="re">${p.emoji}</span>
+      <div class="info"><div class="n">${p.name}</div><div class="p">${q} × ${euro(p.price)}</div></div>
+      <span class="p2">${euro(p.price*q)}</span></div>`;}).join('');
+  document.getElementById('pay-total').textContent=euro(cartTotal());
+}
+function selMethod(m){ method=m;
+  document.getElementById('m-paypal').classList.toggle('sel',m==='paypal');
+  document.getElementById('m-card').classList.toggle('sel',m==='card'); }
+function pay(){
+  const btn=document.getElementById('paybtn');
+  btn.disabled=true; btn.textContent='Zahlung wird verarbeitet …';
+  setTimeout(()=>{
+    if(document.getElementById('failsim').checked){
+      btn.disabled=false; btn.textContent='Jetzt bezahlen';
+      toast('⚠ Zahlung fehlgeschlagen. Bitte erneut versuchen.');
+    }else{
+      btn.disabled=false; btn.textContent='Jetzt bezahlen';
+      go('exit'); restartGate('exitqr'); toast('Zahlung erfolgreich ✓ · Exit-Code erstellt');
+    }
+  },1500);
+}
+
+// ---------- Exit ----------
+function restartGate(qrId){ makeQR(document.getElementById(qrId), 'EXIT-'+Math.random().toString(36).slice(2,8).toUpperCase());
+  const bars=document.querySelectorAll('.gate .bar i'); bars.forEach(b=>{b.style.animation='none';void b.offsetWidth;b.style.animation='';}); }
+function reset(){ cart={}; sampleConfirmed=false; renderCart(); go('checkin'); }
+
+// ---------- Toast ----------
+let toT; function toast(msg){ const t=document.getElementById('toast'); t.textContent=msg;
+  t.classList.add('show'); clearTimeout(toT); toT=setTimeout(()=>t.classList.remove('show'),2100); }
+
+// ---------- Pseudo-QR generator (deterministic block pattern) ----------
+function makeQR(box, seed){
+  const n=21; let h=0; for(let i=0;i<seed.length;i++){h=(h*31+seed.charCodeAt(i))>>>0;}
+  let rng=h||1; const rnd=()=>{rng^=rng<<13;rng^=rng>>>17;rng^=rng<<5;return (rng>>>0)/4294967296;};
+  let cells='';
+  const fp=(x,y)=>((x<7&&y<7)||(x>n-8&&y<7)||(x<7&&y>n-8));
+  for(let y=0;y<n;y++)for(let x=0;x<n;x++){
+    let on; if(fp(x,y)){ const ix=x%7, iy=(x>n-8?x-(n-7):x)%7; on=(x===0||y===0||x===6||y===6||x===n-1||x===n-7||y===6)|| (x>1&&x<5&&y>1&&y<5)||((x>n-6&&x<n-2)&&y>1&&y<5); on=fpPattern(x,y,n);}
+    else on=rnd()>0.5;
+    if(on) cells+=`<rect x="${x}" y="${y}" width="1" height="1"/>`;
+  }
+  box.innerHTML=`<svg viewBox="0 0 ${n} ${n}" shape-rendering="crispEdges" fill="#12201b">${cells}</svg>`;
+}
+function fpPattern(x,y,n){ const lx=x>n-8?x-(n-7):x; const ly=y; return (lx===0||lx===6||ly===0||ly===6)||(lx>1&&lx<5&&ly>1&&ly<5); }
+
+// ---------- Camera (optional, BarcodeDetector; graceful fallback) ----------
+let camStream=null, camLoop=null;
+async function openCam(){
+  const cam=document.getElementById('cam'); cam.classList.add('show');
+  const status=document.getElementById('cam-status'); status.textContent='';
+  try{
+    if(!('BarcodeDetector' in window)) throw new Error('nosupport');
+    const det=new BarcodeDetector({formats:['ean_13','ean_8','qr_code','code_128']});
+    camStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'}});
+    const v=document.getElementById('cam-video'); v.srcObject=camStream; await v.play();
+    camLoop=setInterval(async()=>{
+      try{ const codes=await det.detect(v);
+        if(codes.length){ const p=byEan(codes[0].rawValue);
+          if(p){ scan(p.id,null); status.textContent='Erkannt: '+p.name; closeCam(); }
+          else status.textContent='Unbekannter Code: '+codes[0].rawValue; }
+      }catch(e){}
+    },400);
+  }catch(e){
+    status.innerHTML = 'Kamera nicht verfügbar (nur über HTTPS/localhost & in Chrome/Android).<br>Nutze solange den Tipp-Modus – funktioniert immer.';
+  }
+}
+function closeCam(){ document.getElementById('cam').classList.remove('show');
+  if(camLoop){clearInterval(camLoop);camLoop=null;}
+  if(camStream){camStream.getTracks().forEach(t=>t.stop());camStream=null;} }
+
+// ---------- Init ----------
+renderShelf(); renderCart();
+makeQR(document.getElementById('entryqr'),'ENTRY-NAHBOX');
+if('BarcodeDetector' in window){ document.getElementById('cambtn').style.display='flex'; }
+go('checkin');
+</script>
+</body>
+</html>
