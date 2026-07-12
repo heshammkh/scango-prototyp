@@ -186,6 +186,47 @@
   .cam-hint{color:rgba(255,255,255,.7);font-size:12.5px;text-align:center;margin-bottom:10px}
   .cam-status{color:rgba(255,255,255,.85);font-size:12px;text-align:center;min-height:16px;margin-top:8px}
   .cam .btn{background:#fff;color:var(--brand-ink)}
+  /* ---------- Wawi-Monitor (Betreiber-Sicht) ---------- */
+  .mon{position:fixed;inset:0;background:var(--bg);z-index:65;display:none;flex-direction:column;overflow:hidden}
+  .mon.show{display:flex}
+  .mon-top{display:flex;align-items:center;justify-content:space-between;padding:14px 16px 10px;background:var(--forest,#0E3D2E)}
+  .mon-top .t{color:#fff}
+  .mon-top .t b{font-size:16px;font-weight:700;display:block}
+  .mon-top .t span{font-size:11px;color:#9DC3B2}
+  .mon-close{border:0;background:rgba(255,255,255,.16);color:#fff;border-radius:999px;padding:8px 15px;font-size:14px;font-weight:600;cursor:pointer}
+  .mon-body{flex:1;overflow-y:auto;padding:14px 16px 30px}
+  .kpis{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:8px}
+  .kpi{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:13px 14px}
+  .kpi .lab{font-size:11px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.03em}
+  .kpi .val{font-size:26px;font-weight:800;color:var(--ink);margin-top:3px;line-height:1.1}
+  .kpi .sub{font-size:11px;color:var(--muted);margin-top:2px}
+  .kpi.diff0{background:#EAF8F1;border-color:#BDE9D3}
+  .kpi.diff0 .val{color:var(--ok)}
+  .kpi.diffN{background:var(--warn-bg);border-color:#F0D9BF}
+  .kpi.diffN .val{color:var(--warn)}
+  .mon-note{font-size:12px;color:var(--muted);background:var(--surface);border:1px solid var(--line);
+            border-radius:11px;padding:10px 12px;margin:10px 0 14px;line-height:1.4}
+  .mon-note b{color:var(--brand-ink)}
+  .mtable{width:100%;border-collapse:collapse;background:var(--surface);border:1px solid var(--line);border-radius:12px;overflow:hidden}
+  .mtable th,.mtable td{padding:9px 8px;font-size:12px;text-align:right;border-bottom:1px solid var(--line)}
+  .mtable th{background:var(--surface-2);color:var(--muted);font-weight:700;font-size:10.5px;text-transform:uppercase;letter-spacing:.02em}
+  .mtable td.l,.mtable th.l{text-align:left}
+  .mtable tr:last-child td{border-bottom:0}
+  .mtable .pnm{font-weight:600;color:var(--ink);display:flex;align-items:center;gap:7px}
+  .mtable tr.warnrow{background:var(--warn-bg)}
+  .mtable .dcell{font-weight:700}
+  .mtable .dcell.z{color:var(--ok)} .mtable .dcell.n{color:var(--warn)}
+  .simbtn{border:1px solid #E4C79C;background:#fff;color:var(--warn);border-radius:8px;padding:5px 8px;
+          font-size:11px;font-weight:600;cursor:pointer;white-space:nowrap}
+  .simbtn:active{transform:scale(.96)}
+  .mon-actions{display:flex;gap:10px;margin-top:16px}
+  .mon-actions .btn{flex:1}
+  .mon-legend{display:flex;gap:16px;flex-wrap:wrap;margin-top:12px;font-size:11px;color:var(--muted)}
+  .mon-legend span{display:flex;align-items:center;gap:6px}
+  .dot-ok{width:10px;height:10px;border-radius:3px;background:var(--ok);display:inline-block}
+  .dot-warn{width:10px;height:10px;border-radius:3px;background:var(--warn);display:inline-block}
+  .monbtn{border:1px solid #C9D6CE;background:#fff;color:var(--brand-ink);border-radius:11px;
+          padding:11px;font-size:13px;font-weight:600;cursor:pointer;width:100%;margin-top:10px}
   @media (prefers-reduced-motion:reduce){*{animation-duration:.001ms !important;transition:none !important}}
 </style>
 </head>
@@ -203,8 +244,9 @@
   <!-- CHECK-IN -->
   <section class="screen show" id="s-checkin">
     <div class="checkin-hero">
-      <div class="brandmark" id="brand-checkin"><span class="glyph">◧</span>Smart Store</div>
+      <div class="brandmark" id="brand-checkin"><span class="glyph">◧</span> NahBox · Smart Store</div>
       <div class="qr clickable" id="entryqr" onclick="checkIn()"></div>
+      <div class="tap-hint">Zum Betreten antippen</div>
       <h1>Willkommen</h1>
       <p class="sub">Scanne den QR-Code am Eingang. Deine Kundenkarte meldet dich an – so bleibt der Zugang auch ohne Personal sicher.</p>
     </div>
@@ -235,6 +277,7 @@
     <div class="shelf-wrap" id="shelfwrap">
       <span class="emg-tag">⚙ Notfall-Modus · Antippen = Scan</span>
       <div class="grid" id="shelf"></div>
+      <button class="monbtn" onclick="openMonitor()">📊 Wawi-Monitor öffnen (Betreiber-Sicht)</button>
     </div>
 
     <div class="footbar">
@@ -333,6 +376,38 @@
   </div>
 </div>
 
+<!-- Wawi-Monitor (Betreiber-Sicht) -->
+<div class="mon" id="mon">
+  <div class="mon-top">
+    <div class="t"><b>Wawi-Monitor · Betreiber-Sicht</b><span>Bestandsführung in Echtzeit · ERP/ESL-Anbindung</span></div>
+    <button class="mon-close" onclick="closeMonitor()">Schließen</button>
+  </div>
+  <div class="mon-body">
+    <div class="kpis">
+      <div class="kpi"><div class="lab">Soll-Bestand</div><div class="val" id="k-soll">0</div><div class="sub">was das ERP erwartet (nur erfasste Verkäufe)</div></div>
+      <div class="kpi"><div class="lab">Ist-Bestand</div><div class="val" id="k-ist">0</div><div class="sub">physisch tatsächlich im Regal</div></div>
+      <div class="kpi" id="k-diffbox"><div class="lab">Differenz (Shrinkage)</div><div class="val" id="k-diff">0</div><div class="sub" id="k-diffeur">0,00 €</div></div>
+      <div class="kpi"><div class="lab">Differenzrate</div><div class="val" id="k-rate">0,0 %</div><div class="sub">Anteil unerfasster Ware</div></div>
+    </div>
+    <div class="mon-note">
+      <b>Differenz = Soll − Ist = nicht erfasste Artikel.</b> Jeder Scan bucht den Bestand ab (Soll sinkt). Wird ein Artikel entnommen, aber nicht gescannt, sinkt nur der Ist-Bestand – die Differenz macht die unabsichtliche Nicht-Erfassung sichtbar.
+    </div>
+    <table class="mtable">
+      <thead><tr>
+        <th class="l">Produkt</th><th>Anfang</th><th>Erfasst</th><th>Soll</th><th>Ist</th><th>Diff.</th><th>Simulation</th>
+      </tr></thead>
+      <tbody id="mon-rows"></tbody>
+    </table>
+    <div class="mon-legend">
+      <span><i class="dot-ok"></i> Soll = Ist (alles erfasst)</span>
+      <span><i class="dot-warn"></i> Differenz &gt; 0 (Artikel nicht erfasst)</span>
+    </div>
+    <div class="mon-actions">
+      <button class="btn secondary" onclick="resetMeasure()">Zählung zurücksetzen</button>
+    </div>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script>
@@ -341,25 +416,26 @@
 //  'ean' muss mit dem gedruckten Barcode/QR übereinstimmen.
 // ============================================================
 const CATALOG = [
-  {id:'p1',  ean:'4002846034894', name:'Club-Mate 0,5 l',     emoji:'🍾', price:1.29},
-  {id:'p2',  ean:'4260107220121', name:'Fritz-Kola 0,33 l',   emoji:'🥤', price:1.49},
-  {id:'p3',  ean:'5000159461122', name:'Kaugummi (Streifen)', emoji:'🍬', price:0.89},
-  {id:'p4',  ean:'4008400401225', name:'Schoko-Riegel',       emoji:'🍫', price:0.99},
-  {id:'p5',  ean:'4337185619373', name:'Wasser still 0,5 l',  emoji:'💧', price:0.69},
-  {id:'p6',  ean:'4009900484220', name:'Pfefferminz-Bonbons', emoji:'🌿', price:1.19},
-  {id:'p7',  ean:'4001686301203', name:'Kaffee to go',        emoji:'☕', price:1.99},
-  {id:'p8',  ean:'4311501668405', name:'Bio-Apfel',           emoji:'🍎', price:0.45},
-  {id:'p9',  ean:'4030800000019', name:'Kartoffelchips',      emoji:'🥔', price:1.79},
-  {id:'p10', ean:'4104420030015', name:'Müsliriegel',         emoji:'🌾', price:0.79},
+  {id:'p1',  ean:'4002846034894', name:'Club-Mate 0,5 l',     emoji:'🍾', price:1.29, stock:12},
+  {id:'p2',  ean:'4260107220121', name:'Fritz-Kola 0,33 l',   emoji:'🥤', price:1.49, stock:10},
+  {id:'p3',  ean:'5000159461122', name:'Kaugummi (Streifen)', emoji:'🍬', price:0.89, stock:20},
+  {id:'p4',  ean:'4008400401225', name:'Schoko-Riegel',       emoji:'🍫', price:0.99, stock:18},
+  {id:'p5',  ean:'4337185619373', name:'Wasser still 0,5 l',  emoji:'💧', price:0.69, stock:24},
+  {id:'p6',  ean:'4009900484220', name:'Pfefferminz-Bonbons', emoji:'🌿', price:1.19, stock:15},
+  {id:'p7',  ean:'4001686301203', name:'Kaffee to go',        emoji:'☕', price:1.99, stock:8},
+  {id:'p8',  ean:'4311501668405', name:'Bio-Apfel',           emoji:'🍎', price:0.45, stock:30},
+  {id:'p9',  ean:'4030800000019', name:'Kartoffelchips',      emoji:'🥔', price:1.79, stock:12},
+  {id:'p10', ean:'4104420030015', name:'Müsliriegel',         emoji:'🌾', price:0.79, stock:16},
 ];
 // Fiktiver angemeldeter Kunde (Identifikation beim Check-in)
-const CUSTOMER = {name:'Hesham Khanom', card:'4821'};
+const CUSTOMER = {name:'Max Neumann', card:'••••4821'};
 
 const byId  = id => CATALOG.find(p=>p.id===id);
 const byEan = e  => CATALOG.find(p=>p.ean===e);
 const euro  = n  => n.toFixed(2).replace('.',',')+' €';
 
 let cart={}, method='paypal', sampleConfirmed=false, emergency=false, lastTxn=null;
+let lost={};   // Wawi-Monitor: pro Produkt physisch entnommen, aber NICHT gescannt
 const items   = () => Object.entries(cart).filter(([,q])=>q>0);
 const count   = () => items().reduce((s,[,q])=>s+q,0);
 const total   = () => items().reduce((s,[id,q])=>s+byId(id).price*q,0);
@@ -420,6 +496,42 @@ function renderTotals(){
   document.getElementById('finishbtn').textContent=empty?'Ohne Kauf gehen':'Einkauf beenden';
   document.getElementById('cam-cnt').textContent=count();
   document.getElementById('cam-sum').textContent=euro(total());
+  if(document.getElementById('mon').classList.contains('show')) renderMonitor();
+}
+
+// ---------- Wawi-Monitor (Messschleife) ----------
+// Soll = Anfangsbestand − erfasste Verkäufe (Warenkorb)
+// Ist  = Anfangsbestand − erfasste Verkäufe − nicht erfasste Entnahmen (lost)
+// Differenz = Soll − Ist = nicht erfasste Artikel  → sichtbare Shrinkage
+function sold(id){ return cart[id]||0; }
+function openMonitor(){ document.getElementById('mon').classList.add('show'); renderMonitor(); }
+function closeMonitor(){ document.getElementById('mon').classList.remove('show'); }
+function simLoss(id){ lost[id]=(lost[id]||0)+1; renderMonitor();
+  toast('Simuliert: '+byId(id).name+' ohne Scan entnommen'); }
+function resetMeasure(){ lost={}; renderMonitor(); toast('Zählung zurückgesetzt'); }
+function renderMonitor(){
+  let sSoll=0,sIst=0,dStk=0,dEur=0,ums=0;
+  const rows=CATALOG.map(p=>{
+    const sd=sold(p.id), ls=lost[p.id]||0;
+    const soll=p.stock-sd, ist=p.stock-sd-ls, d=soll-ist;
+    sSoll+=soll; sIst+=ist; dStk+=d; dEur+=d*p.price; ums+=sd*p.price;
+    const cls=d>0?'n':'z';
+    return `<tr class="${d>0?'warnrow':''}">
+      <td class="l"><span class="pnm">${p.emoji} ${p.name}</span></td>
+      <td>${p.stock}</td><td>${sd}</td><td>${soll}</td><td>${ist}</td>
+      <td class="dcell ${cls}">${d>0?'+':''}${d}</td>
+      <td><button class="simbtn" onclick="simLoss('${p.id}')">− ohne Scan</button></td>
+    </tr>`;}).join('');
+  document.getElementById('mon-rows').innerHTML=rows;
+  document.getElementById('k-soll').textContent=sSoll;
+  document.getElementById('k-ist').textContent=sIst;
+  document.getElementById('k-diff').textContent=(dStk>0?'+':'')+dStk;
+  document.getElementById('k-diffeur').textContent=euro(dEur);
+  const rate = (ums+dEur)>0 ? (dEur/(ums+dEur)*100) : 0;
+  document.getElementById('k-rate').textContent=rate.toFixed(1).replace('.',',')+' %';
+  const box=document.getElementById('k-diffbox');
+  box.classList.toggle('diff0', dStk===0);
+  box.classList.toggle('diffN', dStk>0);
 }
 
 // ---------- Cart panel ----------
@@ -496,8 +608,9 @@ function buildReceipt(){
 // ---------- Exit ----------
 function startGate(qrId){ makeQR(document.getElementById(qrId),'EXIT-'+Math.random().toString(36).slice(2,8).toUpperCase());
   document.querySelectorAll('.gate .bar i').forEach(b=>{b.style.animation='none';void b.offsetWidth;b.style.animation='';}); }
-function reset(){ cart={}; sampleConfirmed=false; method='paypal';
+function reset(){ cart={}; sampleConfirmed=false; method='paypal'; lost={};
   document.getElementById('failsim').checked=false; renderTotals();
+  if(document.getElementById('mon').classList.contains('show')) renderMonitor();
   document.getElementById('who').textContent='Angemeldet …'; go('checkin'); }
 
 // ---------- Toast ----------
@@ -563,6 +676,12 @@ renderShelf(); renderTotals();
 makeQR(document.getElementById('entryqr'),'ENTRY-NAHBOX');
 document.getElementById('brand-checkin').addEventListener('click',secretTap);
 document.getElementById('brand-shop').addEventListener('click',secretTap);
+// Shortcut: 3× auf die Phasenleiste tippen öffnet den Wawi-Monitor
+let ptapN=0, ptapT=null;
+document.getElementById('phases').addEventListener('click',()=>{
+  ptapN++; clearTimeout(ptapT); ptapT=setTimeout(()=>ptapN=0,800);
+  if(ptapN>=3){ ptapN=0; openMonitor(); }
+});
 go('checkin');
 </script>
 </body>
