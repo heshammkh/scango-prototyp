@@ -227,6 +227,45 @@
   .dot-warn{width:10px;height:10px;border-radius:3px;background:var(--warn);display:inline-block}
   .monbtn{border:1px solid #C9D6CE;background:#fff;color:var(--brand-ink);border-radius:11px;
           padding:11px;font-size:13px;font-weight:600;cursor:pointer;width:100%;margin-top:10px}
+  /* ---------- Prominente Scan-Bestätigung ---------- */
+  .scanok{position:fixed;inset:0;z-index:75;display:none;align-items:center;justify-content:center;background:rgba(10,15,13,.38)}
+  .scanok.show{display:flex;animation:fade .14s ease}
+  .scanok-card{background:#fff;border-radius:22px;padding:26px 30px;text-align:center;box-shadow:0 18px 50px rgba(0,0,0,.32);
+               min-width:250px;max-width:88%;animation:okpop .34s cubic-bezier(.2,1.3,.5,1)}
+  @keyframes okpop{0%{transform:scale(.5);opacity:0}100%{transform:scale(1);opacity:1}}
+  .scanok-tick{width:64px;height:64px;border-radius:50%;background:var(--ok);margin:0 auto 10px;display:grid;place-items:center;color:#fff;font-size:34px}
+  .scanok-emoji{font-size:30px;line-height:1;margin-bottom:2px}
+  .scanok-name{font-size:19px;font-weight:800;color:var(--ink);margin-bottom:10px}
+  .scanok-hint{font-size:15px;font-weight:700;color:var(--brand-ink);background:var(--mintSoft,#EAF7F0);border-radius:12px;padding:9px 15px;display:inline-block}
+  /* ---------- Inaktivitäts-Erinnerung ---------- */
+  .idlebar{position:fixed;top:14px;left:50%;transform:translateX(-50%) translateY(-24px);z-index:78;
+           background:var(--warn);color:#fff;padding:11px 18px;border-radius:12px;font-size:14px;font-weight:600;
+           box-shadow:0 8px 30px rgba(0,0,0,.25);opacity:0;pointer-events:none;transition:.3s;max-width:90%;text-align:center}
+  .idlebar.show{opacity:1;transform:translateX(-50%) translateY(0)}
+  /* ---------- Anzahl-Abgleich ---------- */
+  .cc-big{font-size:28px;font-weight:800;color:var(--ink)}
+  .cc-btns{display:flex;gap:10px;margin-top:12px}
+  .cc-btn{flex:1;border:0;border-radius:12px;padding:12px;font-size:14px;font-weight:700;cursor:pointer;font-family:var(--font)}
+  .cc-btn.yes{background:var(--brand);color:#fff}
+  .cc-btn.yes:disabled{filter:grayscale(.4) opacity(.7)}
+  .cc-btn.no{background:var(--surface-2);color:var(--danger)}
+  /* ---------- Anzahl-Eingabe (Prüfung) ---------- */
+  .stepper{display:flex;align-items:center;justify-content:center;gap:14px;margin:26px 0 6px}
+  .step-btn{width:64px;height:64px;border-radius:18px;border:0;background:var(--surface-2);color:var(--brand-ink);font-size:32px;font-weight:700;cursor:pointer;line-height:1}
+  .step-btn:active{transform:scale(.94)}
+  .step-input{width:124px;height:78px;border:2px solid var(--line);border-radius:18px;text-align:center;
+              font-size:40px;font-weight:800;color:var(--ink);background:#fff;font-family:var(--font);-moz-appearance:textfield}
+  .step-input:focus{outline:none;border-color:var(--brand-2)}
+  .step-input::-webkit-outer-spin-button,.step-input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+  .steptip{text-align:center;font-size:12px;color:var(--muted);margin:0 0 18px}
+  .result{border-radius:14px;padding:15px 16px;margin-top:18px}
+  .result.ok{background:#EAF8F1;border:1px solid #BDE9D3}
+  .result.warn{background:var(--warn-bg);border:1px solid #F0D9BF}
+  .result .rhead{display:flex;gap:10px;align-items:center;margin-bottom:5px}
+  .result .ic{font-size:22px;line-height:1}
+  .result.ok .ic{color:var(--ok)} .result.warn .ic{color:var(--warn)}
+  .result .rt{font-weight:700;font-size:15.5px;color:var(--ink)}
+  .result .rd{font-size:13px;color:var(--muted);margin:0 0 12px;line-height:1.4}
   @media (prefers-reduced-motion:reduce){*{animation-duration:.001ms !important;transition:none !important}}
 </style>
 </head>
@@ -288,16 +327,19 @@
 
   <!-- VERIFY -->
   <section class="screen" id="s-verify">
-    <h1>Alles gescannt?</h1>
-    <p class="sub">Vergleiche deinen digitalen Warenkorb kurz mit dem echten Korb, bevor du bezahlst.</p>
-    <div class="panel warn"><h3 id="verify-count">–</h3><p>Stimmt die Anzahl mit deinem physischen Korb überein?</p></div>
-    <h2>Stichprobe</h2>
-    <p class="sub">Bestätige, dass du diesen zufällig gewählten Artikel dabei hast.</p>
-    <div class="sample" id="sample" onclick="confirmSample()">
-      <span class="re" id="sample-e">—</span>
-      <div class="info"><div class="n" id="sample-n">—</div><div class="p">Zum Bestätigen antippen</div></div>
-      <div class="check" id="sample-check">✓</div>
+    <h1>Wie viele Artikel hast du im Korb?</h1>
+    <p class="sub">Zähle die Artikel in deinem physischen Korb und gib die Anzahl ein. Die App prüft, ob du alles erfasst hast.</p>
+
+    <div class="stepper">
+      <button class="step-btn" onclick="stepQty(-1)">−</button>
+      <input class="step-input" id="cc-input" type="number" inputmode="numeric" min="0" value="0" oninput="onQtyInput()">
+      <button class="step-btn" onclick="stepQty(1)">+</button>
     </div>
+    <p class="steptip">Tippe die Zahl an, um sie direkt einzugeben.</p>
+
+    <button class="btn" id="cc-check" onclick="checkCount()">Prüfen</button>
+    <div id="cc-result"></div>
+
     <div class="footbar">
       <button class="btn" id="toPay" disabled onclick="go('pay');renderPay()">Zur Zahlung</button>
       <button class="btn ghost" onclick="go('shop')">Zurück zum Einkauf</button>
@@ -408,6 +450,19 @@
   </div>
 </div>
 
+<!-- Prominente Scan-Bestätigung (erst scannen, dann einlegen) -->
+<div class="scanok" id="scanok">
+  <div class="scanok-card">
+    <div class="scanok-tick">✓</div>
+    <div class="scanok-emoji" id="scanok-emoji">🍾</div>
+    <div class="scanok-name" id="scanok-name">Produkt</div>
+    <div class="scanok-hint">Jetzt in den Korb legen</div>
+  </div>
+</div>
+
+<!-- Inaktivitäts-Erinnerung -->
+<div class="idlebar" id="idlebar">Denk dran: erst scannen, dann einlegen 🙂</div>
+
 <div class="toast" id="toast"></div>
 
 <script>
@@ -434,7 +489,7 @@ const byId  = id => CATALOG.find(p=>p.id===id);
 const byEan = e  => CATALOG.find(p=>p.ean===e);
 const euro  = n  => n.toFixed(2).replace('.',',')+' €';
 
-let cart={}, method='paypal', sampleConfirmed=false, emergency=false, lastTxn=null;
+let cart={}, method='paypal', sampleConfirmed=false, countConfirmed=false, emergency=false, lastTxn=null, curScreen='checkin';
 let lost={};   // Wawi-Monitor: pro Produkt physisch entnommen, aber NICHT gescannt
 const items   = () => Object.entries(cart).filter(([,q])=>q>0);
 const count   = () => items().reduce((s,[,q])=>s+q,0);
@@ -445,10 +500,12 @@ const SCREENS=['checkin','shop','verify','pay','exit','exitnp'];
 const PHASEMAP={checkin:'checkin',shop:'shop',verify:'verify',pay:'pay',exit:'exit',exitnp:'exit'};
 const ORDER=['checkin','shop','verify','pay','exit'];
 function go(s){
+  curScreen=s;
   SCREENS.forEach(x=>document.getElementById('s-'+x).classList.toggle('show',x===s));
   const cur=PHASEMAP[s], ci=ORDER.indexOf(cur);
   document.querySelectorAll('.phase').forEach(el=>{const i=ORDER.indexOf(el.dataset.ph);
     el.classList.toggle('active',el.dataset.ph===cur); el.classList.toggle('done',i<ci);});
+  if(s==='shop') resetIdle(); else clearIdle();
   window.scrollTo(0,0);
 }
 
@@ -475,19 +532,37 @@ function secretTap(){
 // ---------- Shelf (only in emergency) ----------
 function renderShelf(){
   document.getElementById('shelf').innerHTML=CATALOG.map(p=>`
-    <button class="card" onclick="addToCart('${p.id}',true)">
+    <button class="card" onclick="addToCart('${p.id}')">
       <span class="pr">${euro(p.price)}</span><span class="emoji">${p.emoji}</span>
       <div class="nm">${p.name}</div><div class="ean">EAN ${p.ean}</div>
     </button>`).join('');
 }
 
-// ---------- Add to cart ----------
-function addToCart(id, silent){
+// ---------- Add to cart (= Scan) ----------
+function addToCart(id){
   cart[id]=(cart[id]||0)+1;
   renderTotals(); bumpCart();
-  if(!silent) toast(byId(id).name+' · im Warenkorb ✓');
+  confirmScan(byId(id));   // grosse, unuebersehbare Bestaetigung + Ton + Vibration
+  resetIdle();
+}
+// Prominente Scan-Bestaetigung: "erst scannen, dann einlegen"
+let okT;
+function confirmScan(p){
+  const q=cart[p.id]||1;
+  document.getElementById('scanok-emoji').textContent=p.emoji;
+  document.getElementById('scanok-name').textContent=p.name+(q>1?'  ×'+q:'');
+  const o=document.getElementById('scanok'); o.classList.add('show');
+  beep(); haptic();
+  clearTimeout(okT); okT=setTimeout(()=>o.classList.remove('show'),1800);
 }
 function bumpCart(){const c=document.getElementById('carticon');c.classList.remove('bump');void c.offsetWidth;c.classList.add('bump');}
+// Inaktivitaets-Erinnerung: nach 30s ohne Scan im Shop sanft erinnern
+let idleT, idleHideT;
+function resetIdle(){ clearTimeout(idleT);
+  idleT=setTimeout(()=>{ if(curScreen==='shop' && count()>0) showIdle(); }, 30000); }
+function showIdle(){ const b=document.getElementById('idlebar'); b.classList.add('show');
+  clearTimeout(idleHideT); idleHideT=setTimeout(()=>b.classList.remove('show'),4500); resetIdle(); }
+function clearIdle(){ clearTimeout(idleT); const b=document.getElementById('idlebar'); if(b) b.classList.remove('show'); }
 function renderTotals(){
   document.getElementById('cnt').textContent=count();
   const empty=count()===0;
@@ -553,21 +628,43 @@ function renderCartBody(){
 // ---------- Finish ----------
 function finishShopping(){
   if(count()===0){ go('exitnp'); startGate('exitqr2'); toast('Exit-Code erstellt · kein Kauf'); return; }
-  sampleConfirmed=false; renderVerify(); go('verify');
+  renderVerify(); go('verify');
 }
 
-// ---------- Verify ----------
+// ---------- Verify: Anzahl-Eingabe & Abgleich ----------
 function renderVerify(){
-  document.getElementById('verify-count').textContent=count()+' Artikel · '+euro(total());
-  const it=items(); const pick=byId(it[Math.floor(Math.random()*it.length)][0]);
-  document.getElementById('sample-e').textContent=pick.emoji;
-  document.getElementById('sample-n').textContent=pick.name;
-  document.getElementById('sample-check').classList.remove('on');
+  const inp=document.getElementById('cc-input'); inp.value=0;
+  document.getElementById('cc-result').innerHTML='';
+  document.getElementById('cc-check').disabled=false;
   document.getElementById('toPay').disabled=true;
 }
-function confirmSample(){ sampleConfirmed=true;
-  document.getElementById('sample-check').classList.add('on');
-  document.getElementById('toPay').disabled=false; toast('Stichprobe bestätigt ✓'); }
+function readQty(){ let v=parseInt(document.getElementById('cc-input').value,10); return (isNaN(v)||v<0)?0:v; }
+function afterEdit(){ document.getElementById('toPay').disabled=true; document.getElementById('cc-result').innerHTML=''; }
+function stepQty(d){ const inp=document.getElementById('cc-input'); inp.value=Math.max(0,readQty()+d); afterEdit(); }
+function onQtyInput(){ afterEdit(); }
+function checkCount(){
+  const scanned=count(), v=readQty(), res=document.getElementById('cc-result');
+  if(v===scanned){
+    res.innerHTML=`<div class="result ok"><div class="rhead"><span class="ic">✓</span>
+      <span class="rt">Stimmt! ${scanned} Artikel erfasst.</span></div>
+      <div class="rd">Digitaler und physischer Korb sind identisch – du kannst bezahlen.</div></div>`;
+    document.getElementById('toPay').disabled=false; toast('Alles erfasst ✓');
+  } else if(v>scanned){
+    const miss=v-scanned;
+    res.innerHTML=`<div class="result warn"><div class="rhead"><span class="ic">⚠</span>
+      <span class="rt">${miss} Artikel ${miss===1?'fehlt':'fehlen'} noch.</span></div>
+      <div class="rd">Du hast ${v} im Korb, aber erst ${scanned} gescannt. Bitte scanne ${miss===1?'den fehlenden Artikel':'die fehlenden Artikel'} nach.</div>
+      <button class="btn" onclick="go('shop')">Zurück zum Regal</button></div>`;
+    document.getElementById('toPay').disabled=true;
+  } else {
+    const extra=scanned-v;
+    res.innerHTML=`<div class="result warn"><div class="rhead"><span class="ic">⚠</span>
+      <span class="rt">${extra} Artikel zu viel gescannt.</span></div>
+      <div class="rd">Du hast ${scanned} gescannt, aber nur ${v} im Korb. Hast du etwas zurückgelegt? Prüfe deinen Warenkorb.</div>
+      <button class="btn" onclick="openCart()">Warenkorb öffnen</button></div>`;
+    document.getElementById('toPay').disabled=true;
+  }
+}
 
 // ---------- Pay ----------
 function renderPay(){
@@ -608,7 +705,8 @@ function buildReceipt(){
 // ---------- Exit ----------
 function startGate(qrId){ makeQR(document.getElementById(qrId),'EXIT-'+Math.random().toString(36).slice(2,8).toUpperCase());
   document.querySelectorAll('.gate .bar i').forEach(b=>{b.style.animation='none';void b.offsetWidth;b.style.animation='';}); }
-function reset(){ cart={}; sampleConfirmed=false; method='paypal'; lost={};
+function reset(){ cart={}; sampleConfirmed=false; countConfirmed=false; method='paypal'; lost={};
+  clearIdle();
   document.getElementById('failsim').checked=false; renderTotals();
   if(document.getElementById('mon').classList.contains('show')) renderMonitor();
   document.getElementById('who').textContent='Angemeldet …'; go('checkin'); }
@@ -637,6 +735,7 @@ async function openCam(){
     status.textContent='Bereit – Barcode ins Rechteck halten';
     camLoop=setInterval(async()=>{
       if(scanLock) return;
+      if(document.getElementById('scanok').classList.contains('show')) return;
       try{ const codes=await det.detect(v); if(!codes.length) return;
         const raw=codes[0].rawValue; const now=Date.now();
         if(raw===lastCode && now-lastAt<2000) return;   // Entprellung gleicher Code
@@ -651,10 +750,8 @@ async function openCam(){
   }
 }
 function onScan(p){
-  addToCart(p.id,true); beep(); haptic();
   const f=document.getElementById('flash'); f.classList.remove('go'); void f.offsetWidth; f.classList.add('go');
-  const b=document.getElementById('cam-banner'); document.getElementById('cam-banner-txt').textContent=p.name+' · jetzt einlegen';
-  b.classList.add('show'); clearTimeout(b._t); b._t=setTimeout(()=>b.classList.remove('show'),1600);
+  addToCart(p.id);
 }
 function closeCam(){ document.getElementById('cam').classList.remove('show');
   if(camLoop){clearInterval(camLoop);camLoop=null;}
