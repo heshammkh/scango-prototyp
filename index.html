@@ -172,7 +172,7 @@
   .reticle{position:absolute;left:50%;top:46%;transform:translate(-50%,-50%);width:220px;height:150px;
            border:3px solid rgba(255,255,255,.9);border-radius:16px;box-shadow:0 0 0 4000px rgba(0,0,0,.35)}
   .reticle::after{content:"";position:absolute;left:8px;right:8px;top:50%;height:2px;background:var(--brand-2);
-                  box-shadow:0 0 8px var(--brand-2);animation:scanline 1.8s ease-in-out infinite}
+                  box-shadow:0 0 8px var(--brand-2);animation:scanline 1.8s ease-in-out infinite;opacity:0}
   @keyframes scanline{0%,100%{top:14%}50%{top:86%}}
   .flash{position:absolute;inset:0;background:var(--brand-2);opacity:0;pointer-events:none}
   .flash.go{animation:flash .35s ease}
@@ -266,6 +266,30 @@
   .result.ok .ic{color:var(--ok)} .result.warn .ic{color:var(--warn)}
   .result .rt{font-weight:700;font-size:15.5px;color:var(--ink)}
   .result .rd{font-size:13px;color:var(--muted);margin:0 0 12px;line-height:1.4}
+  /* ---------- Tap-to-Scan ---------- */
+  .scanbtn{width:100%;border:0;border-radius:14px;padding:16px;font-size:17px;font-weight:700;cursor:pointer;
+           background:var(--brand-2);color:#fff;transition:background .2s;font-family:var(--font)}
+  .scanbtn::before{content:"◉ "}
+  .scanbtn.busy{background:#3a423e;color:#9DB0A7;cursor:default}
+  .cam-msg{position:absolute;left:50%;bottom:22px;transform:translateX(-50%) translateY(10px);
+           background:var(--warn);color:#fff;padding:10px 16px;border-radius:12px;font-size:14px;font-weight:600;
+           opacity:0;transition:.25s;max-width:88%;text-align:center;box-shadow:0 8px 24px rgba(0,0,0,.3);pointer-events:none}
+  .cam-msg.show{opacity:1;transform:translateX(-50%) translateY(0)}
+  .cam-stage.searching .reticle::after{opacity:1}
+  /* ---------- Nachscannen (Checkliste) ---------- */
+  .rescan-bar{display:none;background:var(--brand);color:#fff;text-align:center;padding:9px;font-size:15px;font-weight:700}
+  .cam.rescan .rescan-bar{display:block}
+  .rescan-list{position:absolute;left:10px;right:10px;bottom:10px;max-height:42%;overflow-y:auto;
+               background:rgba(10,15,13,.82);border-radius:12px;padding:4px 10px;display:none}
+  .cam.rescan .rescan-list{display:block}
+  .rs-row{display:flex;align-items:center;justify-content:space-between;padding:7px 2px;border-bottom:1px solid rgba(255,255,255,.09);color:#fff;font-size:13px}
+  .rs-row:last-child{border-bottom:0}
+  .rs-ok{color:var(--brand-2);font-weight:800;font-size:15px}
+  /* ---------- Demo-Einstellungen (Notfall-Modus) ---------- */
+  .emg-settings{background:var(--surface);border:1px solid var(--line);border-radius:13px;padding:12px 14px;margin-top:12px}
+  .emg-title{font-size:11px;font-weight:700;color:var(--brand-ink);text-transform:uppercase;letter-spacing:.03em;margin-bottom:6px}
+  .emg-row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:7px 0;font-size:14px;color:var(--ink)}
+  .emg-row input[type=number]{width:74px;padding:6px 8px;border:1px solid var(--line);border-radius:8px;font-size:14px;font-family:var(--font);text-align:center}
   @media (prefers-reduced-motion:reduce){*{animation-duration:.001ms !important;transition:none !important}}
 </style>
 </head>
@@ -316,7 +340,13 @@
     <div class="shelf-wrap" id="shelfwrap">
       <span class="emg-tag">⚙ Notfall-Modus · Antippen = Scan</span>
       <div class="grid" id="shelf"></div>
-      <button class="monbtn" onclick="openMonitor()">📊 Wawi-Monitor öffnen (Betreiber-Sicht)</button>
+      <div class="emg-settings">
+        <div class="emg-title">Demo-Einstellungen</div>
+        <label class="emg-row"><span>Inaktivitäts-Erinnerung</span>
+          <input type="checkbox" id="idle-on" checked onchange="idleSettingChange()"></label>
+        <label class="emg-row"><span>Wartezeit (Sekunden)</span>
+          <input type="number" id="idle-sec" min="5" value="30" onchange="idleSettingChange()"></label>
+      </div>
     </div>
 
     <div class="footbar">
@@ -406,47 +436,18 @@
     <div class="cbadge">🛒 <span id="cam-cnt">0</span> · <span id="cam-sum">0,00 €</span></div>
     <button class="cam-close" onclick="closeCam()">Fertig</button>
   </div>
-  <div class="cam-stage">
+  <div class="rescan-bar" id="rescan-bar"><span id="rescan-count">Noch 0 Artikel</span></div>
+  <div class="cam-stage" id="cam-stage">
     <video id="cam-video" playsinline></video>
     <div class="reticle"></div>
     <div class="flash" id="flash"></div>
-    <div class="cam-banner" id="cam-banner"><span class="chip">✓ erfasst</span><span id="cam-banner-txt">—</span></div>
+    <div class="cam-msg" id="cam-msg"></div>
+    <div class="rescan-list" id="rescan-list"></div>
   </div>
   <div class="cam-bottom">
-    <div class="cam-hint">Halte den Barcode ins Rechteck – erst scannen, dann in den Korb legen.</div>
+    <div class="cam-hint" id="cam-hint">Halte den Barcode ins Rechteck und tippe auf „Scannen".</div>
+    <button class="scanbtn" id="scanbtn" onclick="scanTap()">Scannen</button>
     <div class="cam-status" id="cam-status"></div>
-  </div>
-</div>
-
-<!-- Wawi-Monitor (Betreiber-Sicht) -->
-<div class="mon" id="mon">
-  <div class="mon-top">
-    <div class="t"><b>Wawi-Monitor · Betreiber-Sicht</b><span>Bestandsführung in Echtzeit · ERP/ESL-Anbindung</span></div>
-    <button class="mon-close" onclick="closeMonitor()">Schließen</button>
-  </div>
-  <div class="mon-body">
-    <div class="kpis">
-      <div class="kpi"><div class="lab">Soll-Bestand</div><div class="val" id="k-soll">0</div><div class="sub">was das ERP erwartet (nur erfasste Verkäufe)</div></div>
-      <div class="kpi"><div class="lab">Ist-Bestand</div><div class="val" id="k-ist">0</div><div class="sub">physisch tatsächlich im Regal</div></div>
-      <div class="kpi" id="k-diffbox"><div class="lab">Differenz (Shrinkage)</div><div class="val" id="k-diff">0</div><div class="sub" id="k-diffeur">0,00 €</div></div>
-      <div class="kpi"><div class="lab">Differenzrate</div><div class="val" id="k-rate">0,0 %</div><div class="sub">Anteil unerfasster Ware</div></div>
-    </div>
-    <div class="mon-note">
-      <b>Differenz = Soll − Ist = nicht erfasste Artikel.</b> Jeder Scan bucht den Bestand ab (Soll sinkt). Wird ein Artikel entnommen, aber nicht gescannt, sinkt nur der Ist-Bestand – die Differenz macht die unabsichtliche Nicht-Erfassung sichtbar.
-    </div>
-    <table class="mtable">
-      <thead><tr>
-        <th class="l">Produkt</th><th>Anfang</th><th>Erfasst</th><th>Soll</th><th>Ist</th><th>Diff.</th><th>Simulation</th>
-      </tr></thead>
-      <tbody id="mon-rows"></tbody>
-    </table>
-    <div class="mon-legend">
-      <span><i class="dot-ok"></i> Soll = Ist (alles erfasst)</span>
-      <span><i class="dot-warn"></i> Differenz &gt; 0 (Artikel nicht erfasst)</span>
-    </div>
-    <div class="mon-actions">
-      <button class="btn secondary" onclick="resetMeasure()">Zählung zurücksetzen</button>
-    </div>
   </div>
 </div>
 
@@ -490,7 +491,8 @@ const byEan = e  => CATALOG.find(p=>p.ean===e);
 const euro  = n  => n.toFixed(2).replace('.',',')+' €';
 
 let cart={}, method='paypal', sampleConfirmed=false, countConfirmed=false, emergency=false, lastTxn=null, curScreen='checkin';
-let lost={};   // Wawi-Monitor: pro Produkt physisch entnommen, aber NICHT gescannt
+let idleEnabled=true, idleSeconds=30;                 // Inaktivitäts-Erinnerung (Geheimeinstellungen)
+let rescanMode=false, rescanTarget=0, rescanFinishing=false;  // Nachscannen fehlender Artikel
 const items   = () => Object.entries(cart).filter(([,q])=>q>0);
 const count   = () => items().reduce((s,[,q])=>s+q,0);
 const total   = () => items().reduce((s,[id,q])=>s+byId(id).price*q,0);
@@ -559,10 +561,19 @@ function bumpCart(){const c=document.getElementById('carticon');c.classList.remo
 // Inaktivitaets-Erinnerung: nach 30s ohne Scan im Shop sanft erinnern
 let idleT, idleHideT;
 function resetIdle(){ clearTimeout(idleT);
-  idleT=setTimeout(()=>{ if(curScreen==='shop' && count()>0) showIdle(); }, 30000); }
+  if(!idleEnabled) return;
+  idleT=setTimeout(()=>{ if(curScreen==='shop' && count()>0) showIdle(); }, idleSeconds*1000); }
 function showIdle(){ const b=document.getElementById('idlebar'); b.classList.add('show');
   clearTimeout(idleHideT); idleHideT=setTimeout(()=>b.classList.remove('show'),4500); resetIdle(); }
 function clearIdle(){ clearTimeout(idleT); const b=document.getElementById('idlebar'); if(b) b.classList.remove('show'); }
+function idleSettingChange(){
+  idleEnabled=document.getElementById('idle-on').checked;
+  let s=parseInt(document.getElementById('idle-sec').value,10); if(isNaN(s)||s<5) s=5;
+  idleSeconds=s; document.getElementById('idle-sec').value=s;
+  if(!idleEnabled) clearIdle();
+  if(curScreen==='shop') resetIdle();
+  toast('Erinnerung '+(idleEnabled?('an · '+s+' s'):'aus'));
+}
 function renderTotals(){
   document.getElementById('cnt').textContent=count();
   const empty=count()===0;
@@ -571,47 +582,14 @@ function renderTotals(){
   document.getElementById('finishbtn').textContent=empty?'Ohne Kauf gehen':'Einkauf beenden';
   document.getElementById('cam-cnt').textContent=count();
   document.getElementById('cam-sum').textContent=euro(total());
-  if(document.getElementById('mon').classList.contains('show')) renderMonitor();
-}
-
-// ---------- Wawi-Monitor (Messschleife) ----------
-// Soll = Anfangsbestand − erfasste Verkäufe (Warenkorb)
-// Ist  = Anfangsbestand − erfasste Verkäufe − nicht erfasste Entnahmen (lost)
-// Differenz = Soll − Ist = nicht erfasste Artikel  → sichtbare Shrinkage
-function sold(id){ return cart[id]||0; }
-function openMonitor(){ document.getElementById('mon').classList.add('show'); renderMonitor(); }
-function closeMonitor(){ document.getElementById('mon').classList.remove('show'); }
-function simLoss(id){ lost[id]=(lost[id]||0)+1; renderMonitor();
-  toast('Simuliert: '+byId(id).name+' ohne Scan entnommen'); }
-function resetMeasure(){ lost={}; renderMonitor(); toast('Zählung zurückgesetzt'); }
-function renderMonitor(){
-  let sSoll=0,sIst=0,dStk=0,dEur=0,ums=0;
-  const rows=CATALOG.map(p=>{
-    const sd=sold(p.id), ls=lost[p.id]||0;
-    const soll=p.stock-sd, ist=p.stock-sd-ls, d=soll-ist;
-    sSoll+=soll; sIst+=ist; dStk+=d; dEur+=d*p.price; ums+=sd*p.price;
-    const cls=d>0?'n':'z';
-    return `<tr class="${d>0?'warnrow':''}">
-      <td class="l"><span class="pnm">${p.emoji} ${p.name}</span></td>
-      <td>${p.stock}</td><td>${sd}</td><td>${soll}</td><td>${ist}</td>
-      <td class="dcell ${cls}">${d>0?'+':''}${d}</td>
-      <td><button class="simbtn" onclick="simLoss('${p.id}')">− ohne Scan</button></td>
-    </tr>`;}).join('');
-  document.getElementById('mon-rows').innerHTML=rows;
-  document.getElementById('k-soll').textContent=sSoll;
-  document.getElementById('k-ist').textContent=sIst;
-  document.getElementById('k-diff').textContent=(dStk>0?'+':'')+dStk;
-  document.getElementById('k-diffeur').textContent=euro(dEur);
-  const rate = (ums+dEur)>0 ? (dEur/(ums+dEur)*100) : 0;
-  document.getElementById('k-rate').textContent=rate.toFixed(1).replace('.',',')+' %';
-  const box=document.getElementById('k-diffbox');
-  box.classList.toggle('diff0', dStk===0);
-  box.classList.toggle('diffN', dStk>0);
 }
 
 // ---------- Cart panel ----------
+let fromVerify=false;
 function openCart(){ renderCartBody(); document.getElementById('cartsheet').classList.add('show'); }
-function closeCart(){ document.getElementById('cartsheet').classList.remove('show'); }
+function openCartFromVerify(){ fromVerify=true; openCart(); }
+function closeCart(){ document.getElementById('cartsheet').classList.remove('show');
+  if(fromVerify){ fromVerify=false; renderVerify(); go('verify'); toast('Bitte Anzahl erneut prüfen'); } }
 function chg(id,d){ cart[id]=(cart[id]||0)+d; if(cart[id]<=0) delete cart[id]; renderTotals(); renderCartBody(); }
 function removeItem(id){ delete cart[id]; renderTotals(); renderCartBody(); toast('Artikel entfernt'); }
 function renderCartBody(){
@@ -653,15 +631,15 @@ function checkCount(){
     const miss=v-scanned;
     res.innerHTML=`<div class="result warn"><div class="rhead"><span class="ic">⚠</span>
       <span class="rt">${miss} Artikel ${miss===1?'fehlt':'fehlen'} noch.</span></div>
-      <div class="rd">Du hast ${v} im Korb, aber erst ${scanned} gescannt. Bitte scanne ${miss===1?'den fehlenden Artikel':'die fehlenden Artikel'} nach.</div>
-      <button class="btn" onclick="go('shop')">Zurück zum Regal</button></div>`;
+      <div class="rd">Du hast ${v} im Korb, aber erst ${scanned} gescannt. Scanne ${miss===1?'den fehlenden Artikel':'die fehlenden Artikel'} direkt im Korb nach.</div>
+      <button class="btn" onclick="startRescan(${v})">Fehlenden Artikel jetzt scannen</button></div>`;
     document.getElementById('toPay').disabled=true;
   } else {
     const extra=scanned-v;
     res.innerHTML=`<div class="result warn"><div class="rhead"><span class="ic">⚠</span>
       <span class="rt">${extra} Artikel zu viel gescannt.</span></div>
-      <div class="rd">Du hast ${scanned} gescannt, aber nur ${v} im Korb. Hast du etwas zurückgelegt? Prüfe deinen Warenkorb.</div>
-      <button class="btn" onclick="openCart()">Warenkorb öffnen</button></div>`;
+      <div class="rd">Du hast ${scanned} gescannt, aber nur ${v} im Korb. Hast du etwas zurückgelegt? Entferne es im Warenkorb.</div>
+      <button class="btn" onclick="openCartFromVerify()">Warenkorb öffnen</button></div>`;
     document.getElementById('toPay').disabled=true;
   }
 }
@@ -705,10 +683,9 @@ function buildReceipt(){
 // ---------- Exit ----------
 function startGate(qrId){ makeQR(document.getElementById(qrId),'EXIT-'+Math.random().toString(36).slice(2,8).toUpperCase());
   document.querySelectorAll('.gate .bar i').forEach(b=>{b.style.animation='none';void b.offsetWidth;b.style.animation='';}); }
-function reset(){ cart={}; sampleConfirmed=false; countConfirmed=false; method='paypal'; lost={};
-  clearIdle();
+function reset(){ cart={}; sampleConfirmed=false; countConfirmed=false; method='paypal';
+  rescanMode=false; rescanFinishing=false; clearIdle();
   document.getElementById('failsim').checked=false; renderTotals();
-  if(document.getElementById('mon').classList.contains('show')) renderMonitor();
   document.getElementById('who').textContent='Angemeldet …'; go('checkin'); }
 
 // ---------- Toast ----------
@@ -723,39 +700,105 @@ function beep(){ try{ actx=actx||new (window.AudioContext||window.webkitAudioCon
 function haptic(){ try{ navigator.vibrate && navigator.vibrate(40);}catch(e){} }
 
 // ---------- Camera (continuous) ----------
-let camStream=null, camLoop=null, lastCode='', lastAt=0, scanLock=false;
+let camStream=null, camDet=null, scanBusy=false, searchTimer=null, searchDeadline=0;
 async function openCam(){
   const cam=document.getElementById('cam'); cam.classList.add('show');
-  const status=document.getElementById('cam-status'); status.textContent='Kamera startet …';
+  setScanState('busy','Kamera startet …');
+  document.getElementById('cam-status').textContent='';
+  document.getElementById('cam-msg').classList.remove('show');
   try{
     if(!('BarcodeDetector' in window)) throw new Error('nosupport');
-    const det=new BarcodeDetector({formats:['ean_13','ean_8','qr_code','code_128','code_39','upc_a']});
+    camDet=new BarcodeDetector({formats:['ean_13','ean_8','qr_code','code_128','code_39','upc_a']});
     camStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'}});
     const v=document.getElementById('cam-video'); v.srcObject=camStream; await v.play();
-    status.textContent='Bereit – Barcode ins Rechteck halten';
-    camLoop=setInterval(async()=>{
-      if(scanLock) return;
-      if(document.getElementById('scanok').classList.contains('show')) return;
-      try{ const codes=await det.detect(v); if(!codes.length) return;
-        const raw=codes[0].rawValue; const now=Date.now();
-        if(raw===lastCode && now-lastAt<2000) return;   // Entprellung gleicher Code
-        const p=byEan(raw);
-        if(p){ lastCode=raw; lastAt=now; scanLock=true; setTimeout(()=>scanLock=false,700);
-          onScan(p); status.textContent=''; }
-        else{ status.innerHTML='Unbekannter Code: <b>'+raw+'</b> (nicht im Katalog)'; }
-      }catch(e){}
-    },300);
+    setScanState('ready');
   }catch(e){
-    status.innerHTML='Kamera nicht verfügbar (nur über HTTPS &amp; Chrome/Android).<br>Nutze den Notfall-Modus (3× auf das Logo tippen).';
+    setScanState('busy','Kamera nicht verfügbar');
+    document.getElementById('cam-status').innerHTML='Kamera nur über HTTPS &amp; in Chrome/Android. Nutze den Notfall-Modus (3× auf das Logo).';
   }
 }
-function onScan(p){
-  const f=document.getElementById('flash'); f.classList.remove('go'); void f.offsetWidth; f.classList.add('go');
-  addToCart(p.id);
+function setScanState(state,label){
+  const b=document.getElementById('scanbtn'), stage=document.getElementById('cam-stage');
+  if(state==='ready'){ scanBusy=false; b.classList.remove('busy'); b.textContent='Scannen'; stage.classList.remove('searching'); }
+  else { scanBusy=true; b.classList.add('busy'); b.textContent=label||'Sucht …'; }
 }
-function closeCam(){ document.getElementById('cam').classList.remove('show');
-  if(camLoop){clearInterval(camLoop);camLoop=null;}
-  if(camStream){camStream.getTracks().forEach(t=>t.stop());camStream=null;} }
+function scanTap(){
+  if(scanBusy || !camDet) return;
+  document.getElementById('cam-msg').classList.remove('show');
+  setScanState('busy','Sucht …');
+  document.getElementById('cam-stage').classList.add('searching');
+  searchDeadline=Date.now()+1000;   // 1-Sekunden-Suchfenster
+  searchLoop();
+}
+async function searchLoop(){
+  const v=document.getElementById('cam-video');
+  try{ const codes=await camDet.detect(v);
+    if(codes.length){ const p=byEan(codes[0].rawValue); if(p){ onScanSuccess(p); return; } }
+  }catch(e){}
+  if(Date.now()<searchDeadline){ searchTimer=setTimeout(searchLoop,120); }
+  else { onScanFail(); }
+}
+function onScanSuccess(p){
+  clearTimeout(searchTimer);
+  document.getElementById('cam-stage').classList.remove('searching');
+  const f=document.getElementById('flash'); f.classList.remove('go'); void f.offsetWidth; f.classList.add('go');
+  addToCart(p.id);                       // Erfolgston + Vibration + grosse Bestätigungskarte
+  if(rescanMode) handleRescanProgress();
+  waitConfirmThenReady();
+}
+function onScanFail(){
+  clearTimeout(searchTimer);
+  document.getElementById('cam-stage').classList.remove('searching');
+  failBeep(); failHaptic();
+  const m=document.getElementById('cam-msg'); m.textContent='Kein Code erkannt – halte ihn ruhig näher ins Bild.';
+  m.classList.add('show'); setTimeout(()=>m.classList.remove('show'),1700);
+  setScanState('ready');
+}
+function waitConfirmThenReady(){
+  const check=()=>{ if(document.getElementById('scanok').classList.contains('show')){ setTimeout(check,180); }
+    else if(document.getElementById('cam').classList.contains('show') && !rescanFinishing){ setScanState('ready'); } };
+  setTimeout(check,180);
+}
+function closeCam(){ document.getElementById('cam').classList.remove('show','rescan');
+  clearTimeout(searchTimer); rescanMode=false; rescanFinishing=false;
+  if(camStream){camStream.getTracks().forEach(t=>t.stop());camStream=null;} camDet=null; scanBusy=false; }
+
+// ----- Nachscannen: wachsende grüne Checkliste -----
+function startRescan(target){
+  rescanMode=true; rescanTarget=target; rescanFinishing=false;
+  document.getElementById('cam').classList.add('rescan');
+  document.getElementById('cam-hint').textContent='Scanne den Produkt-Barcode der fehlenden Artikel.';
+  renderRescan(); openCam();
+}
+function renderRescan(){
+  const rem=Math.max(0,rescanTarget-count());
+  document.getElementById('rescan-count').textContent='Noch '+rem+' Artikel';
+  document.getElementById('rescan-list').innerHTML = items().map(([id,q])=>{const p=byId(id);
+    return `<div class="rs-row"><span class="rs-nm">${p.emoji} ${p.name}${q>1?' ×'+q:''}</span><span class="rs-ok">✓</span></div>`;}).join('');
+}
+function handleRescanProgress(){
+  renderRescan();
+  const sc=count();
+  if(sc>=rescanTarget){ rescanFinishing=true; setTimeout(()=>finishRescan(sc>rescanTarget?'over':'ok'),1200); }
+}
+function finishRescan(kind){
+  rescanMode=false; rescanFinishing=false;
+  closeCam(); go('verify');
+  if(kind==='ok'){
+    document.getElementById('cc-input').value=rescanTarget; checkCount();
+  }else{
+    document.getElementById('cc-input').value='';
+    document.getElementById('cc-result').innerHTML=`<div class="result warn"><div class="rhead"><span class="ic">⚠</span>
+      <span class="rt">Mehr gescannt als gezählt.</span></div>
+      <div class="rd">Bitte zähle deinen Korb neu und gib die Anzahl noch einmal ein.</div></div>`;
+    document.getElementById('toPay').disabled=true; toast('Bitte Anzahl neu prüfen');
+  }
+}
+function failBeep(){ try{ actx=actx||new (window.AudioContext||window.webkitAudioContext)();
+  const o=actx.createOscillator(),g=actx.createGain(); o.type='sawtooth';
+  o.frequency.setValueAtTime(300,actx.currentTime); o.frequency.exponentialRampToValueAtTime(150,actx.currentTime+0.18);
+  g.gain.value=.05; o.connect(g); g.connect(actx.destination); o.start(); o.stop(actx.currentTime+0.2);}catch(e){} }
+function failHaptic(){ try{ navigator.vibrate && navigator.vibrate([40,60,40]); }catch(e){} }
 
 // ---------- Pseudo-QR (nur Optik, wird nicht zurückgescannt) ----------
 function makeQR(box,seed){ const n=21; let rng=0; for(let i=0;i<seed.length;i++)rng=(rng*31+seed.charCodeAt(i))>>>0; rng=rng||1;
@@ -773,12 +816,6 @@ renderShelf(); renderTotals();
 makeQR(document.getElementById('entryqr'),'ENTRY-NAHBOX');
 document.getElementById('brand-checkin').addEventListener('click',secretTap);
 document.getElementById('brand-shop').addEventListener('click',secretTap);
-// Shortcut: 3× auf die Phasenleiste tippen öffnet den Wawi-Monitor
-let ptapN=0, ptapT=null;
-document.getElementById('phases').addEventListener('click',()=>{
-  ptapN++; clearTimeout(ptapT); ptapT=setTimeout(()=>ptapN=0,800);
-  if(ptapN>=3){ ptapN=0; openMonitor(); }
-});
 go('checkin');
 </script>
 </body>
